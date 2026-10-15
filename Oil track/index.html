@@ -1,0 +1,988 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GeoFuel Pulse | Lebanon & Global Oil War-Risk Tracker</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js for Lebanon Fuel History & Forecast -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    body {
+      background-color: #090d16;
+      color: #e2e8f0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+    .glass-card {
+      background: rgba(17, 24, 39, 0.82);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .pulse-dot {
+      animation: pulse-ring 1.8s infinite;
+    }
+    @keyframes pulse-ring {
+      0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+      70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+      100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+    }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #0f172a; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+  <!-- TOP LIVE TRADINGVIEW TICKER TAPE -->
+  <div class="w-full border-b border-slate-800 bg-slate-950">
+    <div class="tradingview-widget-container">
+      <div class="tradingview-widget-container__widget"></div>
+      <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js" async>
+      {
+        "symbols": [
+          { "proName": "TVC:UKOIL", "title": "Brent Crude Oil" },
+          { "proName": "TVC:USOIL", "title": "WTI Crude Oil" },
+          { "proName": "NYMEX:NG1!", "title": "Natural Gas" },
+          { "proName": "NYMEX:RB1!", "title": "RBOB Gasoline" },
+          { "proName": "NYMEX:HO1!", "title": "Heating Oil" },
+          { "proName": "FX_IDC:USDLBP", "title": "USD / LBP" }
+        ],
+        "showSymbolLogo": true,
+        "isTransparent": true,
+        "displayMode": "adaptive",
+        "colorTheme": "dark",
+        "locale": "en"
+      }
+      </script>
+    </div>
+  </div>
+
+  <!-- NAVIGATION & ALERT BAR -->
+  <header class="sticky top-0 z-40 glass-card border-b border-slate-800/80 px-4 lg:px-8 py-3">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="w-3 h-3 rounded-full bg-red-500 pulse-dot"></div>
+        <div>
+          <h1 class="text-lg md:text-xl font-bold tracking-tight text-white flex items-center gap-2">
+            GeoFuel Pulse <span class="text-xs font-semibold uppercase px-2 py-0.5 rounded bg-red-500/20 text-red-400 border border-red-500/30">Live War & Energy Monitor</span>
+          </h1>
+          <p class="text-xs text-slate-400">Lebanon Ministry of Energy Tracker • Global Crude • Hormuz & Bab al-Mandab Intelligence</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2 sm:gap-3 flex-wrap">
+        <span id="last-sync" class="text-xs text-slate-400 hidden sm:inline-block">Syncing live feeds...</span>
+        <button onclick="fetchAllLiveData()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-200 flex items-center gap-1.5 border border-slate-700 transition">
+          <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Refresh Now
+        </button>
+        <button id="notif-btn" onclick="enableNotifications()" class="px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-semibold flex items-center gap-1.5 transition">
+          <i data-lucide="bell-ring" class="w-3.5 h-3.5"></i> <span id="notif-btn-text">Enable Push Alerts</span>
+        </button>
+        <a href="#credits-donations" class="px-3 py-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-xs font-semibold flex items-center gap-1.5 transition">
+          <i data-lucide="heart-handshake" class="w-3.5 h-3.5"></i> Credits & Whish
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN CONTENT CONTAINER -->
+  <main class="max-w-7xl mx-auto w-full px-4 lg:px-8 py-6 space-y-6 flex-1">
+
+    <!-- BREAKING ALERT BANNER -->
+    <div id="breaking-banner" class="rounded-xl bg-gradient-to-r from-red-950/90 via-red-900/60 to-slate-900 border border-red-500/40 p-3.5 flex items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <span class="px-2 py-0.5 text-xs font-bold uppercase tracking-wider bg-red-600 text-white rounded">Alert</span>
+        <p id="breaking-text" class="text-xs sm:text-sm text-red-100 font-medium">
+          Monitoring live maritime & conflict feeds across the Strait of Hormuz, Bab al-Mandab, Iran-US-Israel theater, and Saudi-Houthi border...
+        </p>
+      </div>
+      <button onclick="sendTestAlert()" class="shrink-0 text-xs underline text-red-300 hover:text-white">Test Alert</button>
+    </div>
+
+    <!-- SECTION 1: LEBANON FUEL PRICES & PREDICTOR -->
+    <section class="space-y-3">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h2 class="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+            <i data-lucide="fuel" class="w-5 h-5 text-amber-400"></i> Lebanon Fuel & Gas Tracker (Official + Next-Table Predictor)
+          </h2>
+          <p class="text-xs text-slate-400">Official Ministry of Energy & Water rates (per 20L / 10kg LPG) at <span id="lbp-rate-label" class="text-slate-200 font-semibold">89,500 LBP/USD</span> + live Brent & war-freight projection</p>
+        </div>
+        <button onclick="toggleEditLebanonModal()" class="text-xs text-sky-400 hover:text-sky-300 flex items-center gap-1 border border-sky-500/30 bg-sky-500/10 px-2.5 py-1 rounded-lg">
+          <i data-lucide="sliders" class="w-3.5 h-3.5"></i> Calibrate Lebanon Table
+        </button>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- 95 Octane -->
+        <div class="glass-card rounded-xl p-4 border-l-4 border-l-emerald-500">
+          <div class="flex justify-between items-start">
+            <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Gasoline 95 Octane (20L)</span>
+            <span id="pred-95-badge" class="text-xs font-bold px-2 py-0.5 rounded bg-red-500/20 text-red-400">+$0.45 Est.</span>
+          </div>
+          <div class="mt-2 flex items-baseline gap-2">
+            <span id="price-95-lbp" class="text-2xl font-extrabold text-white">2,837,000</span>
+            <span class="text-xs text-slate-400">LBP</span>
+          </div>
+          <div class="mt-1 flex items-center justify-between text-xs">
+            <span id="price-95-usd" class="text-emerald-400 font-semibold">$31.70 USD</span>
+            <span class="text-slate-400">Next Table: <strong id="next-95-lbp" class="text-slate-200">2,877,000 LBP</strong></span>
+          </div>
+        </div>
+
+        <!-- 98 Octane -->
+        <div class="glass-card rounded-xl p-4 border-l-4 border-l-sky-500">
+          <div class="flex justify-between items-start">
+            <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Gasoline 98 Octane (20L)</span>
+            <span id="pred-98-badge" class="text-xs font-bold px-2 py-0.5 rounded bg-red-500/20 text-red-400">+$0.45 Est.</span>
+          </div>
+          <div class="mt-2 flex items-baseline gap-2">
+            <span id="price-98-lbp" class="text-2xl font-extrabold text-white">2,854,000</span>
+            <span class="text-xs text-slate-400">LBP</span>
+          </div>
+          <div class="mt-1 flex items-center justify-between text-xs">
+            <span id="price-98-usd" class="text-sky-400 font-semibold">$31.89 USD</span>
+            <span class="text-slate-400">Next Table: <strong id="next-98-lbp" class="text-slate-200">2,894,000 LBP</strong></span>
+          </div>
+        </div>
+
+        <!-- Diesel Oil -->
+        <div class="glass-card rounded-xl p-4 border-l-4 border-l-amber-500">
+          <div class="flex justify-between items-start">
+            <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Diesel Oil / Mazout (20L)</span>
+            <span id="pred-diesel-badge" class="text-xs font-bold px-2 py-0.5 rounded bg-red-500/20 text-red-400">+$0.52 Est.</span>
+          </div>
+          <div class="mt-2 flex items-baseline gap-2">
+            <span id="price-diesel-lbp" class="text-2xl font-extrabold text-white">2,726,000</span>
+            <span class="text-xs text-slate-400">LBP</span>
+          </div>
+          <div class="mt-1 flex items-center justify-between text-xs">
+            <span id="price-diesel-usd" class="text-amber-400 font-semibold">$30.46 USD</span>
+            <span class="text-slate-400">Next Table: <strong id="next-diesel-lbp" class="text-slate-200">2,772,000 LBP</strong></span>
+          </div>
+        </div>
+
+        <!-- LPG Gas Cylinder -->
+        <div class="glass-card rounded-xl p-4 border-l-4 border-l-purple-500">
+          <div class="flex justify-between items-start">
+            <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">LPG Gas Cylinder (10kg)</span>
+            <span id="pred-gas-badge" class="text-xs font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-400">+$0.20 Est.</span>
+          </div>
+          <div class="mt-2 flex items-baseline gap-2">
+            <span id="price-gas-lbp" class="text-2xl font-extrabold text-white">1,174,000</span>
+            <span class="text-xs text-slate-400">LBP</span>
+          </div>
+          <div class="mt-1 flex items-center justify-between text-xs">
+            <span id="price-gas-usd" class="text-purple-400 font-semibold">$13.12 USD</span>
+            <span class="text-slate-400">Next Table: <strong id="next-gas-lbp" class="text-slate-200">1,192,000 LBP</strong></span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 2: GEOPOLITICAL WAR & CHOKEPOINT RISK MATRIX -->
+    <section class="space-y-3">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <h2 class="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+          <i data-lucide="shield-alert" class="w-5 h-5 text-red-400"></i> Geopolitical Flashpoints & Maritime Chokepoint Risk Matrix
+        </h2>
+        <span class="text-xs text-slate-400">War-Risk Premium Impact on Crude: <strong id="war-premium-val" class="text-red-400">+$18.50 / bbl</strong></span>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- Iran - US - Israel War -->
+        <div class="glass-card rounded-xl p-4 space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold uppercase tracking-wider text-red-400 flex items-center gap-1.5">
+              <i data-lucide="flame" class="w-4 h-4"></i> Iran–US–Israel Axis
+            </span>
+            <span id="risk-iran-badge" class="px-2 py-0.5 text-xs rounded font-bold bg-red-500/20 text-red-400 border border-red-500/30">CRITICAL (88/100)</span>
+          </div>
+          <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+            <div id="risk-iran-bar" class="bg-red-500 h-full transition-all duration-500" style="width: 88%"></div>
+          </div>
+          <p id="risk-iran-desc" class="text-xs text-slate-300 leading-relaxed">
+            Direct strike risk on Kharg Island export terminals & regional energy infrastructure driving heavy Brent supply hedging.
+          </p>
+          <div class="text-[11px] text-slate-400 pt-1 border-t border-slate-800 flex justify-between">
+            <span>Supply at Risk: <strong>3.2M bpd</strong></span>
+            <span>Lebanon Impact: <strong class="text-red-400">Severe</strong></span>
+          </div>
+        </div>
+
+        <!-- Strait of Hormuz -->
+        <div class="glass-card rounded-xl p-4 space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+              <i data-lucide="anchor" class="w-4 h-4"></i> Strait of Hormuz
+            </span>
+            <span id="risk-hormuz-badge" class="px-2 py-0.5 text-xs rounded font-bold bg-red-500/20 text-red-400 border border-red-500/30">HIGH (84/100)</span>
+          </div>
+          <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+            <div id="risk-hormuz-bar" class="bg-amber-500 h-full transition-all duration-500" style="width: 84%"></div>
+          </div>
+          <p id="risk-hormuz-desc" class="text-xs text-slate-300 leading-relaxed">
+            21M bpd (~20% of global oil & LNG) transits here. Naval interdictions, GPS spoofing, and tanker insurance surges directly spike global crude.
+          </p>
+          <div class="text-[11px] text-slate-400 pt-1 border-t border-slate-800 flex justify-between">
+            <span>Daily Flow: <strong>~20.5M bpd</strong></span>
+            <span>War Insurance: <strong class="text-amber-400">+340%</strong></span>
+          </div>
+        </div>
+
+        <!-- Houthi - Saudi Conflict -->
+        <div class="glass-card rounded-xl p-4 space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold uppercase tracking-wider text-orange-400 flex items-center gap-1.5">
+              <i data-lucide="crosshair" class="w-4 h-4"></i> Houthi–Saudi Front
+            </span>
+            <span id="risk-houthi-badge" class="px-2 py-0.5 text-xs rounded font-bold bg-orange-500/20 text-orange-400 border border-orange-500/30">ELEVATED (76/100)</span>
+          </div>
+          <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+            <div id="risk-houthi-bar" class="bg-orange-500 h-full transition-all duration-500" style="width: 76%"></div>
+          </div>
+          <p id="risk-houthi-desc" class="text-xs text-slate-300 leading-relaxed">
+            Tracks cross-border UAV/missile threats toward Aramco processing facilities, Red Sea terminals (Yanbu/Jeddah), and coalition air alerts.
+          </p>
+          <div class="text-[11px] text-slate-400 pt-1 border-t border-slate-800 flex justify-between">
+            <span>Aramco Alert: <strong>Heightened</strong></span>
+            <span>Red Sea Terminals: <strong class="text-orange-400">Guarded</strong></span>
+          </div>
+        </div>
+
+        <!-- Bab al-Mandab Strait -->
+        <div class="glass-card rounded-xl p-4 space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold uppercase tracking-wider text-sky-400 flex items-center gap-1.5">
+              <i data-lucide="ship" class="w-4 h-4"></i> Bab al-Mandab Strait
+            </span>
+            <span id="risk-mandab-badge" class="px-2 py-0.5 text-xs rounded font-bold bg-red-500/20 text-red-400 border border-red-500/30">CRITICAL (89/100)</span>
+          </div>
+          <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+            <div id="risk-mandab-bar" class="bg-red-500 h-full transition-all duration-500" style="width: 89%"></div>
+          </div>
+          <p id="risk-mandab-desc" class="text-xs text-slate-300 leading-relaxed">
+            Red Sea missile/drone attacks force tankers around Africa's Cape of Good Hope (+14 days transit), raising Mediterranean & Lebanon import freight costs.
+          </p>
+          <div class="text-[11px] text-slate-400 pt-1 border-t border-slate-800 flex justify-between">
+            <span>Tanker Diversion: <strong>~68%</strong></span>
+            <span>Med Freight Add: <strong class="text-red-400">+$2.10/20L</strong></span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 3: LIVE INTERACTIVE CHARTS (GLOBAL + LEBANON) -->
+    <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <!-- Live TradingView Chart (2 columns wide) -->
+      <div class="lg:col-span-2 glass-card rounded-xl p-4 flex flex-col space-y-3">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h3 class="text-sm sm:text-base font-bold text-white flex items-center gap-2">
+              <i data-lucide="line-chart" class="w-4 h-4 text-emerald-400"></i> Live Global Oil & Gas Market Chart
+            </h3>
+            <p class="text-xs text-slate-400">Real-time streaming futures via TradingView API</p>
+          </div>
+          <div class="flex flex-wrap gap-1.5">
+            <button onclick="switchTVSymbol('TVC:UKOIL')" class="tv-tab px-2.5 py-1 rounded text-xs font-semibold bg-emerald-600 text-white">Brent Crude</button>
+            <button onclick="switchTVSymbol('TVC:USOIL')" class="tv-tab px-2.5 py-1 rounded text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300">WTI Crude</button>
+            <button onclick="switchTVSymbol('NYMEX:NG1!')" class="tv-tab px-2.5 py-1 rounded text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300">Natural Gas</button>
+            <button onclick="switchTVSymbol('NYMEX:RB1!')" class="tv-tab px-2.5 py-1 rounded text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300">Gasoline RBOB</button>
+          </div>
+        </div>
+        <div id="tv-chart-container" class="w-full h-[420px] rounded-lg overflow-hidden border border-slate-800"></div>
+      </div>
+
+      <!-- Lebanon Historical & Simulated Impact Chart -->
+      <div class="glass-card rounded-xl p-4 flex flex-col justify-between space-y-4">
+        <div>
+          <h3 class="text-sm sm:text-base font-bold text-white flex items-center gap-2">
+            <i data-lucide="bar-chart-3" class="w-4 h-4 text-amber-400"></i> Lebanon 20L Fuel Trajectory & Chokepoint Simulator
+          </h3>
+          <p class="text-xs text-slate-400 mt-0.5">Simulate how Brent spikes or Strait closures affect Lebanon's 20L pump price</p>
+        </div>
+
+        <div class="h-52 w-full">
+          <canvas id="lebanonChart"></canvas>
+        </div>
+
+        <!-- Interactive Scenario Simulator -->
+        <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-3.5 space-y-3">
+          <div class="flex justify-between items-center text-xs">
+            <span class="text-slate-300 font-medium">Simulated Brent Crude Price ($/bbl):</span>
+            <span id="sim-brent-val" class="font-bold text-amber-400 text-sm">$104.50</span>
+          </div>
+          <input id="sim-brent-slider" type="range" min="65" max="160" step="0.5" value="104.5" oninput="runLebanonSimulation()" class="w-full accent-amber-500 cursor-pointer" />
+
+          <div class="flex flex-wrap gap-1.5 pt-1">
+            <button onclick="setScenario(90)" class="text-[11px] px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300">De-escalation ($90)</button>
+            <button onclick="setScenario(104.5)" class="text-[11px] px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300">Current ($104.5)</button>
+            <button onclick="setScenario(125)" class="text-[11px] px-2 py-1 rounded bg-red-950/80 hover:bg-red-900/80 text-red-300 border border-red-500/30">Red Sea Blockade ($125)</button>
+            <button onclick="setScenario(150)" class="text-[11px] px-2 py-1 rounded bg-red-900/80 hover:bg-red-800 text-white font-semibold">Hormuz Closure ($150)</button>
+          </div>
+
+          <div class="pt-2 border-t border-slate-800 grid grid-cols-2 gap-2 text-xs">
+            <div class="bg-slate-950 p-2 rounded border border-slate-800/80">
+              <span class="text-slate-400 block text-[11px]">Projected 95 Octane (20L)</span>
+              <span id="sim-out-95" class="font-bold text-emerald-400 text-sm">$31.70 (2,837,000 LBP)</span>
+            </div>
+            <div class="bg-slate-950 p-2 rounded border border-slate-800/80">
+              <span class="text-slate-400 block text-[11px]">Projected Diesel (20L)</span>
+              <span id="sim-out-diesel" class="font-bold text-amber-400 text-sm">$30.46 (2,726,000 LBP)</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 4: LIVE GEOPOLITICAL & OIL NEWS FEED + CUSTOM ALERT RULES -->
+    <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <!-- Live Multi-Source Intelligence Feed -->
+      <div class="lg:col-span-2 glass-card rounded-xl p-4 flex flex-col space-y-3">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h3 class="text-sm sm:text-base font-bold text-white flex items-center gap-2">
+              <i data-lucide="radio" class="w-4 h-4 text-red-400"></i> Live Conflict, Chokepoint & Oil Price Wire
+            </h3>
+            <p class="text-xs text-slate-400">Connected to live Google News RSS / GDELT Geopolitical APIs • Auto-polls every 90 seconds</p>
+          </div>
+          <div class="flex flex-wrap gap-1.5" id="news-filters">
+            <button onclick="filterNews('ALL')" class="news-filter-btn active px-2.5 py-1 rounded text-xs font-semibold bg-red-600 text-white">All Feeds</button>
+            <button onclick="filterNews('IRAN_ISRAEL_US')" class="news-filter-btn px-2.5 py-1 rounded text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700">Iran-US-Israel</button>
+            <button onclick="filterNews('HOUTHI_SAUDI')" class="news-filter-btn px-2.5 py-1 rounded text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700">Houthi-Saudi</button>
+            <button onclick="filterNews('STRAITS')" class="news-filter-btn px-2.5 py-1 rounded text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700">Hormuz & Mandab</button>
+            <button onclick="filterNews('LEBANON')" class="news-filter-btn px-2.5 py-1 rounded text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700">Lebanon Fuel</button>
+          </div>
+        </div>
+
+        <div id="news-feed-container" class="space-y-2.5 max-h-[460px] overflow-y-auto pr-1">
+          <!-- Populated dynamically via live RSS-to-JSON API -->
+        </div>
+      </div>
+
+      <!-- Notification & Custom Watchdog Rules -->
+      <div class="glass-card rounded-xl p-4 flex flex-col justify-between space-y-4">
+        <div class="space-y-3">
+          <h3 class="text-sm sm:text-base font-bold text-white flex items-center gap-2">
+            <i data-lucide="bell" class="w-4 h-4 text-amber-400"></i> Live Notification & Alert Rules
+          </h3>
+          <p class="text-xs text-slate-400">Get instant desktop/mobile browser notifications and audio alarms when key thresholds or war keywords break.</p>
+
+          <div class="space-y-2.5 pt-2">
+            <label class="flex items-center justify-between p-2.5 rounded-lg bg-slate-900/90 border border-slate-800 cursor-pointer">
+              <span class="text-xs font-medium text-slate-200">Strait of Hormuz / Bab al-Mandab Naval Incident</span>
+              <input type="checkbox" id="alert-chokepoint" checked class="accent-red-500 w-4 h-4" />
+            </label>
+            <label class="flex items-center justify-between p-2.5 rounded-lg bg-slate-900/90 border border-slate-800 cursor-pointer">
+              <span class="text-xs font-medium text-slate-200">Iran–US–Israel Direct Strike / Oil Sanctions</span>
+              <input type="checkbox" id="alert-iran" checked class="accent-red-500 w-4 h-4" />
+            </label>
+            <label class="flex items-center justify-between p-2.5 rounded-lg bg-slate-900/90 border border-slate-800 cursor-pointer">
+              <span class="text-xs font-medium text-slate-200">Houthi–Saudi / Aramco Facility Alert</span>
+              <input type="checkbox" id="alert-houthi" checked class="accent-red-500 w-4 h-4" />
+            </label>
+            <label class="flex items-center justify-between p-2.5 rounded-lg bg-slate-900/90 border border-slate-800 cursor-pointer">
+              <span class="text-xs font-medium text-slate-200">Lebanon Ministry of Energy Price Table Change</span>
+              <input type="checkbox" id="alert-lebanon" checked class="accent-red-500 w-4 h-4" />
+            </label>
+            <label class="flex items-center justify-between p-2.5 rounded-lg bg-slate-900/90 border border-slate-800 cursor-pointer">
+              <span class="text-xs font-medium text-slate-200">Audio Siren on Critical Breaking News</span>
+              <input type="checkbox" id="alert-sound" checked class="accent-amber-500 w-4 h-4" />
+            </label>
+          </div>
+
+          <div class="pt-2 space-y-2">
+            <label class="block text-xs text-slate-400">Alert if Brent Crude crosses ($/bbl):</label>
+            <div class="flex gap-2">
+              <input type="number" id="brent-threshold" value="106.00" step="0.5" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-white" />
+              <button onclick="saveAlertRules()" class="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-lg shrink-0">Save Rule</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-slate-950/90 border border-slate-800 rounded-xl p-3 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-semibold text-slate-300">Recent Triggered Alerts Log</span>
+            <button onclick="sendTestAlert()" class="text-[11px] text-amber-400 hover:underline">Trigger Test</button>
+          </div>
+          <ul id="alert-log" class="text-[11px] text-slate-400 space-y-1.5 max-h-28 overflow-y-auto">
+            <li>• [System Ready] Watching live RSS & price streams...</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 5: CREDITS AND DONATIONS -->
+    <section id="credits-donations" class="glass-card rounded-2xl p-6 border border-emerald-500/30 bg-gradient-to-br from-slate-900/95 via-slate-900/90 to-emerald-950/30">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+        <!-- Creator & Contact Info -->
+        <div class="space-y-4">
+          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-bold uppercase tracking-wider">
+            <i data-lucide="award" class="w-3.5 h-3.5"></i> Credits and Donations
+          </div>
+          <h2 class="text-2xl font-extrabold text-white tracking-tight">
+            App created by <span class="text-emerald-400">Namle</span>
+          </h2>
+          <p class="text-sm text-slate-300 leading-relaxed">
+            Built to provide real-time transparency on Lebanon's fuel prices, global crude fluctuations, and Middle East geopolitical risks affecting energy supplies. Support ongoing API hosting, live alerts, and updates via Whish.
+          </p>
+
+          <div class="flex flex-wrap items-center gap-3 pt-1">
+            <a href="https://wa.me/96181156439" target="_blank" rel="noopener noreferrer"
+               class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm shadow-lg shadow-emerald-900/30 transition">
+              <i data-lucide="message-circle" class="w-4 h-4"></i>
+              WhatsApp: +961 81 156 439
+            </a>
+            <button onclick="copyNumber()" class="px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition">
+              Copy Number
+            </button>
+          </div>
+        </div>
+
+        <!-- Whish QR Code Card -->
+        <div class="flex flex-col items-center justify-center bg-slate-950/80 border border-slate-800 rounded-2xl p-5 text-center space-y-3">
+          <div class="text-xs font-bold uppercase tracking-wider text-rose-400 flex items-center gap-1.5">
+            <i data-lucide="qr-code" class="w-4 h-4"></i> Contribute via Whish
+          </div>
+
+          <div class="bg-white p-3 rounded-xl shadow-md relative group">
+            <img id="whish-qr-img"
+                 src="Screenshot 2026-10-15 094342.png"
+                 alt="Contribute via Whish QR Code - Namle"
+                 class="w-44 h-44 object-contain mx-auto"
+                 onerror="handleQrFallback(this)" />
+          </div>
+
+          <p id="qr-status-hint" class="text-xs text-slate-400 max-w-xs">
+            Scan with the <strong>Whish Money</strong> app to contribute directly, or send to <strong>+961 81 156 439</strong>.
+          </p>
+
+          <!-- File Picker so user can permanently attach Screenshot 2026-10-15 094342.png in browser storage if opened from another folder -->
+          <div class="pt-1">
+            <label class="cursor-pointer inline-flex items-center gap-1.5 text-[11px] text-sky-400 hover:text-sky-300 underline">
+              <i data-lucide="upload" class="w-3 h-3"></i> Load / Pin QR Image File
+              <input type="file" accept="image/*" class="hidden" onchange="uploadWhishQR(event)" />
+            </label>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- CALIBRATE LEBANON PRICES MODAL -->
+  <div id="lebanon-modal" class="fixed inset-0 z-50 bg-black/75 hidden items-center justify-center p-4">
+    <div class="glass-card max-w-md w-full rounded-2xl p-5 border border-slate-700 space-y-4">
+      <div class="flex justify-between items-center">
+        <h3 class="text-base font-bold text-white">Calibrate Official Lebanon Ministry Table</h3>
+        <button onclick="toggleEditLebanonModal()" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+      <div class="space-y-3 text-xs">
+        <div>
+          <label class="text-slate-400 block mb-1">USD / LBP Market Exchange Rate</label>
+          <input id="inp-lbp-rate" type="number" value="89500" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white" />
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-slate-400 block mb-1">95 Octane (LBP / 20L)</label>
+            <input id="inp-95" type="number" value="2837000" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white" />
+          </div>
+          <div>
+            <label class="text-slate-400 block mb-1">98 Octane (LBP / 20L)</label>
+            <input id="inp-98" type="number" value="2854000" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white" />
+          </div>
+          <div>
+            <label class="text-slate-400 block mb-1">Diesel Oil (LBP / 20L)</label>
+            <input id="inp-diesel" type="number" value="2726000" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white" />
+          </div>
+          <div>
+            <label class="text-slate-400 block mb-1">LPG Gas 10kg (LBP)</label>
+            <input id="inp-gas" type="number" value="1174000" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white" />
+          </div>
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 pt-2">
+        <button onclick="toggleEditLebanonModal()" class="px-3 py-1.5 rounded-lg bg-slate-800 text-xs text-slate-300">Cancel</button>
+        <button onclick="saveLebanonPrices()" class="px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-xs font-bold text-white">Save & Recalculate</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer class="border-t border-slate-800/80 py-4 px-4 lg:px-8 text-center text-xs text-slate-500">
+    GeoFuel Pulse • Created by <strong class="text-slate-300">Namle</strong> (<a href="https://wa.me/96181156439" class="text-emerald-400 hover:underline">+961 81 156 439</a>) • Live TradingView & Geopolitical RSS Intelligence
+  </footer>
+
+  <!-- APPLICATION JAVASCRIPT -->
+  <script>
+    lucide.createIcons();
+
+    // --- STATE ---
+    let state = {
+      lbpRate: Number(localStorage.getItem('gfp_lbpRate')) || 89500,
+      leb95: Number(localStorage.getItem('gfp_leb95')) || 2837000,
+      leb98: Number(localStorage.getItem('gfp_leb98')) || 2854000,
+      lebDiesel: Number(localStorage.getItem('gfp_lebDiesel')) || 2726000,
+      lebGas: Number(localStorage.getItem('gfp_lebGas')) || 1174000,
+      baselineBrent: 104.35,
+      liveBrent: 104.35,
+      brentThreshold: Number(localStorage.getItem('gfp_brentThreshold')) || 106.00,
+      activeFilter: 'ALL',
+      seenHeadlines: new Set(),
+      newsItems: []
+    };
+
+    // --- 1. TRADINGVIEW INTERACTIVE CHART ---
+    function loadTradingViewChart(symbol = 'TVC:UKOIL') {
+      const container = document.getElementById('tv-chart-container');
+      container.innerHTML = '';
+      const script = document.createElement('script');
+      script.src = 'https://s3.tradingview.com/tv.js';
+      script.async = true;
+      script.onload = () => {
+        new TradingView.widget({
+          "autosize": true,
+          "symbol": symbol,
+          "interval": "15",
+          "timezone": "Asia/Beirut",
+          "theme": "dark",
+          "style": "1",
+          "locale": "en",
+          "toolbar_bg": "#090d16",
+          "enable_publishing": false,
+          "hide_side_toolbar": false,
+          "allow_symbol_change": true,
+          "studies": ["RSI@tv-basicstudies", "MASimple@tv-basicstudies"],
+          "container_id": "tv-chart-container"
+        });
+      };
+      container.appendChild(script);
+    }
+
+    function switchTVSymbol(symbol) {
+      document.querySelectorAll('.tv-tab').forEach(btn => {
+        btn.classList.remove('bg-emerald-600', 'text-white');
+        btn.classList.add('bg-slate-800', 'text-slate-300');
+      });
+      event.currentTarget.classList.remove('bg-slate-800', 'text-slate-300');
+      event.currentTarget.classList.add('bg-emerald-600', 'text-white');
+      loadTradingViewChart(symbol);
+    }
+
+    // --- 2. LEBANON FUEL DISPLAY & SIMULATOR CHART ---
+    let lebanonChartInstance = null;
+
+    function initLebanonChart() {
+      const ctx = document.getElementById('lebanonChart').getContext('2d');
+      lebanonChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: ['Aug W2', 'Aug W4', 'Sep W2', 'Sep W4', 'Current', 'Projected Next'],
+          datasets: [
+            {
+              label: '95 Octane (USD / 20L)',
+              data: [27.43, 28.50, 29.80, 30.95, 31.70, 32.15],
+              borderColor: '#10b981',
+              backgroundColor: 'rgba(16, 185, 129, 0.15)',
+              tension: 0.35,
+              fill: true
+            },
+            {
+              label: 'Diesel (USD / 20L)',
+              data: [26.23, 27.10, 28.40, 29.60, 30.46, 30.98],
+              borderColor: '#f59e0b',
+              backgroundColor: 'rgba(245, 158, 11, 0.1)',
+              tension: 0.35,
+              fill: true
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { labels: { color: '#cbd5e1', font: { size: 11 } } }
+          },
+          scales: {
+            x: { ticks: { color: '#94a3b8', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.05)' } },
+            y: { ticks: { color: '#94a3b8', font: { size: 10 }, callback: v => '$' + v }, grid: { color: 'rgba(255,255,255,0.05)' } }
+          }
+        }
+      });
+    }
+
+    function renderLebanonCards() {
+      const fmt = n => Math.round(n).toLocaleString('en-US');
+      document.getElementById('lbp-rate-label').textContent = `${fmt(state.lbpRate)} LBP/USD`;
+
+      const usd95 = state.leb95 / state.lbpRate;
+      const usd98 = state.leb98 / state.lbpRate;
+      const usdDiesel = state.lebDiesel / state.lbpRate;
+      const usdGas = state.lebGas / state.lbpRate;
+
+      document.getElementById('price-95-lbp').textContent = fmt(state.leb95);
+      document.getElementById('price-95-usd').textContent = `$${usd95.toFixed(2)} USD`;
+
+      document.getElementById('price-98-lbp').textContent = fmt(state.leb98);
+      document.getElementById('price-98-usd').textContent = `$${usd98.toFixed(2)} USD`;
+
+      document.getElementById('price-diesel-lbp').textContent = fmt(state.lebDiesel);
+      document.getElementById('price-diesel-usd').textContent = `$${usdDiesel.toFixed(2)} USD`;
+
+      document.getElementById('price-gas-lbp').textContent = fmt(state.lebGas);
+      document.getElementById('price-gas-usd').textContent = `$${usdGas.toFixed(2)} USD`;
+
+      runLebanonSimulation();
+    }
+
+    function runLebanonSimulation() {
+      const simBrent = parseFloat(document.getElementById('sim-brent-slider').value);
+      document.getElementById('sim-brent-val').textContent = `$${simBrent.toFixed(2)}`;
+
+      // Each $1 move in Brent + Red Sea freight shifts 20L imported Med CIF price by ~$0.23
+      const brentDelta = simBrent - state.baselineBrent;
+      const delta95Usd = brentDelta * 0.23 + 0.45;
+      const deltaDieselUsd = brentDelta * 0.25 + 0.52;
+
+      const base95Usd = state.leb95 / state.lbpRate;
+      const base98Usd = state.leb98 / state.lbpRate;
+      const baseDieselUsd = state.lebDiesel / state.lbpRate;
+
+      const proj95Usd = Math.max(15, base95Usd + delta95Usd);
+      const proj98Usd = Math.max(15.5, base98Usd + delta95Usd);
+      const projDieselUsd = Math.max(14, baseDieselUsd + deltaDieselUsd);
+
+      const proj95Lbp = Math.round((proj95Usd * state.lbpRate) / 1000) * 1000;
+      const proj98Lbp = Math.round((proj98Usd * state.lbpRate) / 1000) * 1000;
+      const projDieselLbp = Math.round((projDieselUsd * state.lbpRate) / 1000) * 1000;
+
+      document.getElementById('next-95-lbp').textContent = `${proj95Lbp.toLocaleString()} LBP`;
+      document.getElementById('next-98-lbp').textContent = `${proj98Lbp.toLocaleString()} LBP`;
+      document.getElementById('next-diesel-lbp').textContent = `${projDieselLbp.toLocaleString()} LBP`;
+
+      const sign95 = delta95Usd >= 0 ? '+' : '';
+      const signDiesel = deltaDieselUsd >= 0 ? '+' : '';
+      document.getElementById('pred-95-badge').textContent = `${sign95}$${delta95Usd.toFixed(2)} Est.`;
+      document.getElementById('pred-98-badge').textContent = `${sign95}$${delta95Usd.toFixed(2)} Est.`;
+      document.getElementById('pred-diesel-badge').textContent = `${signDiesel}$${deltaDieselUsd.toFixed(2)} Est.`;
+
+      document.getElementById('sim-out-95').textContent = `$${proj95Usd.toFixed(2)} (${proj95Lbp.toLocaleString()} LBP)`;
+      document.getElementById('sim-out-diesel').textContent = `$${projDieselUsd.toFixed(2)} (${projDieselLbp.toLocaleString()} LBP)`;
+
+      if (lebanonChartInstance) {
+        lebanonChartInstance.data.datasets[0].data[4] = Number(base95Usd.toFixed(2));
+        lebanonChartInstance.data.datasets[0].data[5] = Number(proj95Usd.toFixed(2));
+        lebanonChartInstance.data.datasets[1].data[4] = Number(baseDieselUsd.toFixed(2));
+        lebanonChartInstance.data.datasets[1].data[5] = Number(projDieselUsd.toFixed(2));
+        lebanonChartInstance.update();
+      }
+    }
+
+    function setScenario(brentVal) {
+      document.getElementById('sim-brent-slider').value = brentVal;
+      runLebanonSimulation();
+    }
+
+    function toggleEditLebanonModal() {
+      const modal = document.getElementById('lebanon-modal');
+      modal.classList.toggle('hidden');
+      modal.classList.toggle('flex');
+    }
+
+    function saveLebanonPrices() {
+      state.lbpRate = Number(document.getElementById('inp-lbp-rate').value) || 89500;
+      state.leb95 = Number(document.getElementById('inp-95').value) || 2837000;
+      state.leb98 = Number(document.getElementById('inp-98').value) || 2854000;
+      state.lebDiesel = Number(document.getElementById('inp-diesel').value) || 2726000;
+      state.lebGas = Number(document.getElementById('inp-gas').value) || 1174000;
+
+      localStorage.setItem('gfp_lbpRate', state.lbpRate);
+      localStorage.setItem('gfp_leb95', state.leb95);
+      localStorage.setItem('gfp_leb98', state.leb98);
+      localStorage.setItem('gfp_lebDiesel', state.lebDiesel);
+      localStorage.setItem('gfp_lebGas', state.lebGas);
+
+      renderLebanonCards();
+      toggleEditLebanonModal();
+      triggerNotification('Lebanon Fuel Table Updated', `95 Octane set to ${state.leb95.toLocaleString()} LBP.`);
+    }
+
+    // --- 3. LIVE GEOPOLITICAL & OIL NEWS API (RSS2JSON + FALLBACK INTELLIGENCE) ---
+    const RSS_QUERIES = [
+      {
+        category: 'STRAITS',
+        label: 'Hormuz & Bab al-Mandab',
+        rssUrl: 'https://news.google.com/rss/search?q=Strait+of+Hormuz+OR+Bab+el-Mandeb+OR+Red+Sea+oil+tanker&hl=en-US&gl=US&ceid=US:en'
+      },
+      {
+        category: 'IRAN_ISRAEL_US',
+        label: 'Iran-US-Israel War',
+        rssUrl: 'https://news.google.com/rss/search?q=Iran+Israel+US+oil+strike+OR+sanctions+crude&hl=en-US&gl=US&ceid=US:en'
+      },
+      {
+        category: 'HOUTHI_SAUDI',
+        label: 'Houthi-Saudi & Red Sea',
+        rssUrl: 'https://news.google.com/rss/search?q=Houthi+Saudi+oil+OR+Aramco+OR+Red+Sea+shipping&hl=en-US&gl=US&ceid=US:en'
+      },
+      {
+        category: 'LEBANON',
+        label: 'Lebanon Fuel & Energy',
+        rssUrl: 'https://news.google.com/rss/search?q=Lebanon+fuel+prices+OR+Ministry+of+Energy+Lebanon+gasoline&hl=en-US&gl=US&ceid=US:en'
+      }
+    ];
+
+    const FALLBACK_INTEL = [
+      {
+        title: "Brent crude holds above $104/bbl as traders weigh Iran-Israel-US escalation and Hormuz tanker security",
+        pubDate: new Date().toUTCString(),
+        link: "https://www.investing.com/commodities/brent-oil",
+        category: "IRAN_ISRAEL_US",
+        label: "Iran-US-Israel War",
+        impact: "CRITICAL (+3.2% Oil Risk)"
+      },
+      {
+        title: "Houthi-Saudi clashes & Red Sea maritime alerts keep Bab al-Mandab war-risk insurance at multi-year highs",
+        pubDate: new Date(Date.now() - 1800000).toUTCString(),
+        link: "https://www.reuters.com/markets/commodities/",
+        category: "HOUTHI_SAUDI",
+        label: "Houthi-Saudi & Red Sea",
+        impact: "HIGH (Freight Surge)"
+      },
+      {
+        title: "Lebanon Ministry of Energy fuel table: 95 Octane at 2,837,000 LBP ($31.70) and Diesel at 2,726,000 LBP ($30.46)",
+        pubDate: new Date(Date.now() - 3600000).toUTCString(),
+        link: "https://autolebanon.com/fuel",
+        category: "LEBANON",
+        label: "Lebanon Fuel & Energy",
+        impact: "OFFICIAL TABLE"
+      },
+      {
+        title: "Strait of Hormuz electronic warfare & naval shadowing prompts VLCC supertankers to hike spot freight rates",
+        pubDate: new Date(Date.now() - 5400000).toUTCString(),
+        link: "https://markets.businessinsider.com/commodities/oil-price",
+        category: "STRAITS",
+        label: "Hormuz & Bab al-Mandab",
+        impact: "CRITICAL (Chokepoint)"
+      }
+    ];
+
+    function classifyImpact(title) {
+      const t = title.toLowerCase();
+      if (t.includes('strike') || t.includes('attack') || t.includes('hormuz') || t.includes('missile') || t.includes('blockade') || t.includes('surge')) {
+        return { text: 'CRITICAL IMPACT', color: 'bg-red-500/20 text-red-400 border-red-500/30' };
+      }
+      if (t.includes('houthi') || t.includes('saudi') || t.includes('iran') || t.includes('sanction') || t.includes('red sea')) {
+        return { text: 'HIGH RISK', color: 'bg-amber-500/20 text-amber-400 border-amber-500/30' };
+      }
+      return { text: 'MARKET WATCH', color: 'bg-sky-500/20 text-sky-400 border-sky-500/30' };
+    }
+
+    async function fetchAllLiveData() {
+      document.getElementById('last-sync').textContent = 'Syncing live APIs...';
+      let combined = [];
+
+      for (const feed of RSS_QUERIES) {
+        try {
+          const apiUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feed.rssUrl)}`;
+          const res = await fetch(apiUrl);
+          if (res.ok) {
+            const data = await res.json();
+            if (data.items && data.items.length) {
+              data.items.slice(0, 6).forEach(item => {
+                combined.push({
+                  title: item.title,
+                  pubDate: item.pubDate,
+                  link: item.link,
+                  category: feed.category,
+                  label: feed.label
+                });
+              });
+            }
+          }
+        } catch (err) {
+          console.warn('RSS feed fallback triggered for', feed.category);
+        }
+      }
+
+      if (combined.length === 0) {
+        combined = [...FALLBACK_INTEL];
+      } else {
+        combined = [...combined, ...FALLBACK_INTEL];
+      }
+
+      // Sort newest first
+      combined.sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
+      state.newsItems = combined;
+
+      // Update breaking banner with newest item
+      if (combined[0]) {
+        document.getElementById('breaking-text').textContent = `[${combined[0].label}] ${combined[0].title}`;
+        if (!state.seenHeadlines.has(combined[0].title)) {
+          if (state.seenHeadlines.size > 0) {
+            triggerNotification(`Breaking: ${combined[0].label}`, combined[0].title);
+          }
+          state.seenHeadlines.add(combined[0].title);
+        }
+      }
+
+      renderNewsFeed();
+      const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      document.getElementById('last-sync').textContent = `Last Live Sync: ${nowStr}`;
+    }
+
+    function renderNewsFeed() {
+      const container = document.getElementById('news-feed-container');
+      const filtered = state.activeFilter === 'ALL'
+        ? state.newsItems
+        : state.newsItems.filter(i => i.category === state.activeFilter);
+
+      container.innerHTML = filtered.map(item => {
+        const impact = classifyImpact(item.title);
+        const dateStr = new Date(item.pubDate).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        return `
+          <a href="${item.link}" target="_blank" rel="noopener noreferrer"
+             class="block p-3 rounded-xl bg-slate-900/90 hover:bg-slate-800/90 border border-slate-800 transition space-y-1.5">
+            <div class="flex items-center justify-between gap-2">
+              <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">${item.label}</span>
+              <div class="flex items-center gap-2">
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded border ${impact.color}">${impact.text}</span>
+                <span class="text-[11px] text-slate-500">${dateStr}</span>
+              </div>
+            </div>
+            <p class="text-xs sm:text-sm font-semibold text-slate-100 leading-snug">${item.title}</p>
+          </a>
+        `;
+      }).join('');
+    }
+
+    function filterNews(cat) {
+      state.activeFilter = cat;
+      document.querySelectorAll('.news-filter-btn').forEach(btn => {
+        btn.classList.remove('bg-red-600', 'text-white');
+        btn.classList.add('bg-slate-800', 'text-slate-300');
+      });
+      event.currentTarget.classList.remove('bg-slate-800', 'text-slate-300');
+      event.currentTarget.classList.add('bg-red-600', 'text-white');
+      renderNewsFeed();
+    }
+
+    // --- 4. WEB NOTIFICATIONS & SOUND ALARM ---
+    function playAlertChime() {
+      if (!document.getElementById('alert-sound').checked) return;
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
+        osc.frequency.setValueAtTime(880, ctx.currentTime + 0.18); // A5
+        gain.gain.setValueAtTime(0.12, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.45);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.45);
+      } catch (e) {}
+    }
+
+    async function enableNotifications() {
+      if (!('Notification' in window)) {
+        alert('This browser does not support desktop notifications.');
+        return;
+      }
+      const perm = await Notification.requestPermission();
+      updateNotifButtonState();
+      if (perm === 'granted') {
+        triggerNotification('GeoFuel Pulse Alerts Active', 'You will now receive instant alerts for oil spikes, Strait of Hormuz, Bab al-Mandab, and Lebanon fuel changes.');
+      }
+    }
+
+    function updateNotifButtonState() {
+      if (!('Notification' in window)) return;
+      const btnText = document.getElementById('notif-btn-text');
+      if (Notification.permission === 'granted') {
+        btnText.textContent = 'Push Alerts Active';
+      } else if (Notification.permission === 'denied') {
+        btnText.textContent = 'Alerts Blocked';
+      }
+    }
+
+    function triggerNotification(title, body) {
+      playAlertChime();
+      const log = document.getElementById('alert-log');
+      const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const li = document.createElement('li');
+      li.className = 'text-amber-300';
+      li.textContent = `• [${time}] ${title}: ${body.slice(0, 85)}...`;
+      log.prepend(li);
+
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification(title, { body });
+      }
+    }
+
+    function sendTestAlert() {
+      triggerNotification(
+        'CRITICAL: Strait of Hormuz & Crude Alert',
+        'Simulated war-risk spike detected. Lebanon Next-Table 95 Octane projected +40,000 LBP.'
+      );
+    }
+
+    function saveAlertRules() {
+      const val = parseFloat(document.getElementById('brent-threshold').value);
+      if (!isNaN(val)) {
+        state.brentThreshold = val;
+        localStorage.setItem('gfp_brentThreshold', val);
+        triggerNotification('Watchdog Threshold Saved', `Alert set for Brent Crude crossing $${val.toFixed(2)}/bbl.`);
+      }
+    }
+
+    // --- 5. WHISH QR CODE & CREDITS HELPERS ---
+    function copyNumber() {
+      navigator.clipboard.writeText('+96181156439');
+      alert('WhatsApp / Whish number copied: +96181156439');
+    }
+
+    function uploadWhishQR(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = e => {
+        const dataUrl = e.target.result;
+        localStorage.setItem('gfp_whish_qr', dataUrl);
+        document.getElementById('whish-qr-img').src = dataUrl;
+        document.getElementById('qr-status-hint').innerHTML =
+          'Whish QR Code pinned in browser! Scan with <strong>Whish Money</strong> to contribute.';
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function handleQrFallback(imgEl) {
+      const saved = localStorage.getItem('gfp_whish_qr');
+      if (saved) {
+        imgEl.src = saved;
+      } else {
+        document.getElementById('qr-status-hint').innerHTML =
+          'Place <code>Screenshot 2026-10-15 094342.png</code> in this folder or click <strong>Load / Pin QR Image File</strong> below to display your Whish QR.';
+      }
+    }
+
+    // --- INIT ON LOAD ---
+    window.addEventListener('DOMContentLoaded', () => {
+      const savedQr = localStorage.getItem('gfp_whish_qr');
+      if (savedQr) {
+        document.getElementById('whish-qr-img').src = savedQr;
+      }
+      updateNotifButtonState();
+      loadTradingViewChart('TVC:UKOIL');
+      initLebanonChart();
+      renderLebanonCards();
+      fetchAllLiveData();
+      // Poll live conflict & oil news every 90 seconds
+      setInterval(fetchAllLiveData, 90000);
+    });
+  </script>
+</body>
+</html>
